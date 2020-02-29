@@ -20,10 +20,6 @@ var (
 	port = 8080
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
-}
-
 type ErrorLevel string
 
 const (
@@ -133,7 +129,6 @@ func main() {
 					if err != nil {
 						char = -1
 					}
-					fmt.Println(matches)
 					tplErrs = append(tplErrs, templateError{
 						Line:        line,
 						Char:        char,
