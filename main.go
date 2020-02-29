@@ -24,19 +24,28 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
 }
 
+type ErrorLevel string
+
+const (
+	parseErrorLevel ErrorLevel = "parse"
+	execErrorLevel  ErrorLevel = "exec"
+)
+
 type templateError struct {
 	Line        int
 	Char        int
 	Description string
+	Level       ErrorLevel
 }
 type indexData struct {
-	Text      string
-	TextLines []string
-	Errors    []templateError
+	Text           string
+	TextLines      []string
+	Errors         []templateError
+	LineNumSpacing int
 }
 
 func main() {
-	indexTemplate, err := htmlTemplate.New("index.html").Funcs(htmlTemplate.FuncMap{
+	funcs := htmlTemplate.FuncMap{
 		"intRange": func(start, end int) []int {
 			n := end - start + 1
 			result := make([]int, n)
@@ -45,7 +54,11 @@ func main() {
 			}
 			return result
 		},
-	}).ParseFiles("index.html")
+		"nl": func() string {
+			return "\n"
+		},
+	}
+	indexTemplate, err := htmlTemplate.New("index.html").Funcs(funcs).ParseFiles("index.html")
 	if err != nil {
 		panic(err)
 	}
@@ -100,6 +113,7 @@ func main() {
 					Line:        line - 1,
 					Char:        -1,
 					Description: matches[2],
+					Level:       parseErrorLevel,
 				})
 			}
 		} else {
@@ -124,6 +138,7 @@ func main() {
 						Line:        line,
 						Char:        char,
 						Description: matches[3],
+						Level:       execErrorLevel,
 					})
 				}
 			}
@@ -138,9 +153,10 @@ func main() {
 			outputText = text
 		}
 		indexTemplate.Execute(w, indexData{
-			Text:      outputText,
-			Errors:    tplErrs,
-			TextLines: lines,
+			Text:           outputText,
+			Errors:         tplErrs,
+			TextLines:      lines,
+			LineNumSpacing: CountDigits(len(lines)),
 		})
 	})
 
