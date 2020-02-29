@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+    <title>Go template validator</title>
+    <meta name="description" content="">
+    <meta name="keywords" content="go template validation validator">
+    <style>
+        .line::before {
+            content: attr(data-line-no);
+            display: inline-block;
+            width: 4em;
+            color: gray;
+        }
+        .warn {
+            color: orange;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <form action="/" method="POST" enctype="multipart/form-data">
+        <p>
+            <label>
+                File
+                <input type="file" name="from-file" />
+            </label>
+        </p>
+        {{if not (len .Errors) -}}<p>No errors found</p>{{- end}}
+        {{range $ei, $e := $.Errors -}}
+            {{if eq $e.Line -1 -}}<p class="error"></p>{{- end}}
+        {{- end}}
+        {{if .TextLines -}}
+            <pre>{{range $i, $l := .TextLines -}}
+                <span class="line" data-line-no="{{$i}}">{{$l}}{{"\n"}}</span><!--
+             -->{{range $ei, $e := $.Errors -}}
+                    {{if eq $i $e.Line -}}
+                    {{if ne $e.Char -1}}<span>{{range $_ := intRange 0 $e.Char}} {{end}}</span>{{end}}<!--
+                 --><span class="error line">{{$e.Description}}{{"\n"}}</span>
+                    {{- end}}
+                {{- end}}
+            {{- end}}</pre>
+        {{- end}}
+        <p>
+            <label>
+                Text
+                <textarea name="from-raw-text">{{.Text}}</textarea>
+            </label>
+        </p>
+        <p>
+            <button type="submit">Submit</button>
+        </p>
+    </form>
+</body>
+</html>
