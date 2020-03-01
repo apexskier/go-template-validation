@@ -68,6 +68,9 @@ func main() {
 		"nl": func() string {
 			return "\n"
 		},
+		"split": func(str string) []string {
+			return strings.Split(str, ": ")
+		},
 	}
 	indexTemplate, err := htmlTemplate.New("index.html").Funcs(funcs).ParseFiles("index.html")
 	if err != nil {
@@ -98,17 +101,19 @@ func main() {
 
 		var data interface{}
 		rawData := r.FormValue("data")
-		err = json.Unmarshal([]byte(rawData), &data)
-		if err != nil {
-			tplErrs = append(tplErrs, templateError{
-				Line:        -1,
-				Char:        -1,
-				Description: fmt.Sprintf("failed to understand data: %v", err),
-				Level:       misunderstoodError,
-			})
+		if rawData != "" {
+			err = json.Unmarshal([]byte(rawData), &data)
+			if err != nil {
+				tplErrs = append(tplErrs, templateError{
+					Line:        -1,
+					Char:        -1,
+					Description: fmt.Sprintf("failed to understand data: %v", err),
+					Level:       misunderstoodError,
+				})
+			}
 		}
 
-		t := textTemplate.New("")
+		t := textTemplate.New("input template")
 
 		// mock template functions - this'll happen automatically as they're found, but errors will be output and there's a max limit
 		rawFunctions := r.FormValue("functions")
@@ -134,7 +139,7 @@ func main() {
 			}()
 		}
 
-		t, parseTplErrs := parse(text, t, 0)
+		t, parseTplErrs := parse(text, t)
 		tplErrs = append(tplErrs, parseTplErrs...)
 
 		var buf bytes.Buffer

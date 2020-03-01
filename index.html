@@ -29,6 +29,9 @@
             text-align: center;
             content: "!";
         }
+        .line.error + .line.error::before {
+            content: " ";
+        }
         .error {
             color: crimson;
         }
@@ -110,12 +113,15 @@
             </span>{{nl}}
             {{- range $ei, $e := $.Errors -}}
                 {{if eq $i $e.Line -}}
+                {{- range $si, $s := split $e.Description -}}
                 <span class="line error {{$e.Level}}">
                     {{- if ne $e.Char -1 -}}
-                    {{- range $_ := intRange 1 $e.Char}}{{" "}}{{end}}{{"↑ " -}}
+                    {{- range $_ := intRange 1 $e.Char}}{{" "}}{{end -}}
+                    {{- if eq $si 0}}{{"↑ " -}}{{else}}{{range $_ := intRange 0 $si }}{{"  "}}{{end}}{{end -}}
+                    {{$s}}
                     {{- end -}}
-                    {{- $e.Description -}}
                 </span>{{nl}}
+                {{- end -}}
                 {{- end -}}
             {{- end -}}
             {{- end -}}

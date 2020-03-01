@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 var (
 	templateErrorRegex    = regexp.MustCompile(`template: (.*?):((\d+):)?(\d+): (.*)`)
 	findTokenRegex        = regexp.MustCompile(`"(.+)"`)
+	findExprRegex         = regexp.MustCompile(`<(\.Value)>`)
 	functionNotFoundRegex = regexp.MustCompile(`function "(.+)" not defined`)
 )
 
@@ -56,7 +58,11 @@ func createTemplateError(err error, level ErrorLevel) templateError {
 	}
 }
 
-func parse(text string, baseTpl *textTemplate.Template, depth int) (*textTemplate.Template, []templateError) {
+func parse(text string, baseTpl *textTemplate.Template) (*textTemplate.Template, []templateError) {
+	return parseInternal(text, baseTpl, 0)
+}
+
+func parseInternal(text string, baseTpl *textTemplate.Template, depth int) (*textTemplate.Template, []templateError) {
 	lines := SplitLines(text)
 	tplErrs := make([]templateError, 0)
 
@@ -86,7 +92,7 @@ func parse(text string, baseTpl *textTemplate.Template, depth int) (*textTemplat
 			badFunctionMatch := functionNotFoundRegex.FindStringSubmatch(tplErr.Description)
 			if badFunctionMatch != nil {
 				token := badFunctionMatch[1]
-				t, parseTplErrs := parse(text, baseTpl.Funcs(textTemplate.FuncMap{
+				t, parseTplErrs := parseInternal(text, baseTpl.Funcs(textTemplate.FuncMap{
 					token: func() error {
 						return nil
 					},
@@ -104,7 +110,13 @@ func exec(t *textTemplate.Template, data interface{}, buf *bytes.Buffer) []templ
 	tplErrs := make([]templateError, 0)
 	err := t.Execute(buf, data)
 	if err != nil {
-		tplErrs = append(tplErrs, createTemplateError(err, execErrorLevel))
+		tplErr := createTemplateError(err, execErrorLevel)
+		matches := findExprRegex.FindStringSubmatch(tplErr.Description)
+		if len(matches) == 2 {
+			value := matches[1]
+			fmt.Println(value)
+		}
+		tplErrs = append(tplErrs, tplErr)
 	}
 	return tplErrs
 }
