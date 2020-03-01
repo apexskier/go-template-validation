@@ -19,6 +19,7 @@ var (
 	port = 8080
 )
 
+// ErrorLevel is the type of error found
 type ErrorLevel string
 
 const (
@@ -139,12 +140,12 @@ func main() {
 			}()
 		}
 
-		t, parseTplErrs := parse(text, t)
+		parsedT, parseTplErrs := parse(text, t)
 		tplErrs = append(tplErrs, parseTplErrs...)
 
 		var buf bytes.Buffer
 		defer buf.Reset()
-		execTplErrs := exec(t, data, &buf)
+		execTplErrs := exec(parsedT, data, &buf)
 		tplErrs = append(tplErrs, execTplErrs...)
 
 		// outputs html into the textarea, so chrome gets worried

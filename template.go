@@ -11,7 +11,7 @@ import (
 
 var (
 	templateErrorRegex    = regexp.MustCompile(`template: (.*?):((\d+):)?(\d+): (.*)`)
-	findTokenRegex        = regexp.MustCompile(`"(.+)"`)
+	findTokenRegex        = regexp.MustCompile(`['"](.+)['"]`)
 	findExprRegex         = regexp.MustCompile(`<(\.Value)>`)
 	functionNotFoundRegex = regexp.MustCompile(`function "(.+)" not defined`)
 )
@@ -110,6 +110,9 @@ func exec(t *textTemplate.Template, data interface{}, buf *bytes.Buffer) []templ
 	tplErrs := make([]templateError, 0)
 	err := t.Execute(buf, data)
 	if err != nil {
+		if err.Error() == fmt.Sprintf(`template: %s: "%s" is an incomplete or empty template`, t.Name(), t.Name()) {
+			return tplErrs
+		}
 		tplErr := createTemplateError(err, execErrorLevel)
 		matches := findExprRegex.FindStringSubmatch(tplErr.Description)
 		if len(matches) == 2 {

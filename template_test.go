@@ -96,7 +96,7 @@ func TestParseIndexSyntax(t *testing.T) {
 		t.Errorf("unexpected errors found: %v", errs)
 	}
 	assertError(t, templateError{
-		Char:        -1,
+		Char:        7,
 		Line:        0,
 		Level:       parseErrorLevel,
 		Description: `unexpected bad character U+005B '[' in command`,
@@ -142,11 +142,11 @@ func TestExecMissing(t *testing.T) {
 	}
 }
 
-// func TestExecArrayAccess(t *testing.T) {
-// 	tpl, _ := textTemplate.New("base").Parse("<{{.Foo[2]}}>")
-// 	var buf bytes.Buffer
-// 	errs := exec(tpl, map[string]interface{}{}, &buf)
-// 	if len(errs) != 0 {
-// 		t.Errorf("errs found: %v", errs)
-// 	}
-// }
+func TestExecIgnoresIncomplete(t *testing.T) {
+	tpl := textTemplate.New("base")
+	var buf bytes.Buffer
+	errs := exec(tpl, nil, &buf)
+	if len(errs) != 0 {
+		t.Errorf("errs found: %v", errs)
+	}
+}

@@ -104,7 +104,7 @@
         <p>{{len .Errors}} error{{if ne (len .Errors) 1}}s{{end}} found</p>
         {{- end}}
         {{range $ei, $e := $.Errors -}}
-            {{if eq $e.Line -1 -}}<p class="error">{{$e.Description}}</p>{{- end}}
+            {{if eq $e.Line -1 -}}<p class="error">{{$e.Description}} [{{$e.Level}}]</p>{{- end}}
         {{- end}}
         <pre>
             {{- range $i, $l := .TextLines -}}
@@ -118,8 +118,8 @@
                     {{- if ne $e.Char -1 -}}
                     {{- range $_ := intRange 1 $e.Char}}{{" "}}{{end -}}
                     {{- if eq $si 0}}{{"↑ " -}}{{else}}{{range $_ := intRange 0 $si }}{{"  "}}{{end}}{{end -}}
-                    {{$s}}
                     {{- end -}}
+                    {{- $s -}}
                 </span>{{nl}}
                 {{- end -}}
                 {{- end -}}
