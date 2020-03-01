@@ -5,62 +5,129 @@
     <meta name="description" content="">
     <meta name="keywords" content="go template validation validator">
     <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+        .description {
+            max-width: 600px;
+        }
         .line::before {
-            content: attr(data-line-no);
+            content: " ";
             display: inline-block;
             width: {{.LineNumSpacing}}em;
+            margin-right: 0.5em;
+        }
+        .line[data-line-no]::before {
+            content: attr(data-line-no);
             color: gray;
+        }
+        .line.error::before {
+            background-color: crimson;
+            color: #fff;
+        }
+        .line.error::before {
+            text-align: center;
+            content: "!";
         }
         .error {
             color: crimson;
         }
-        .exec {
-            /* color: chocolate; */
+        label {
+            display: block;
+            font-size: 14px;
+        }
+        textarea {
+            width: 100%;
+            font-family: monospace;    
+        }
+        input {
+            font-family: monospace;    
+        }
+        summary h3 {
+            display: inline-block;
+        }
+        pre {
+            overflow-x: auto;
+            max-width: 100%;
+        }
+        footer {
+            margin-top: 2em;
+            margin-bottom: 1em;
         }
     </style>
 </head>
 <body>
     <h2>Go template validation</h2>
-    <p>
-        <code><a href="https://golang.org/pkg/text/template/">"text/template"</a></code><br />
-        <code><a href="https://golang.org/pkg/html/template/">"html/template"</a></code>
-    </p>
-    <form action="/" method="POST" enctype="multipart/form-data">
+    <section class="description">
         <p>
-            <label>
-                File
+            When working with the <code><a href="https://golang.org/pkg/text/template/">"text/template"</a></code> and
+            <code><a href="https://golang.org/pkg/html/template/">"html/template"</a></code> packages, I often have a hard
+            time understanding go's errors, especially when they're inline in code. This is a simple tool to visually
+            show where validation errors are happening.
+        </p>
+        <p>
+            To use, choose a file or insert your template code directly. You can add mock data in the form of JSON.
+        </p>
+    </section>
+    <details open>
+        <summary><h3>Input</h3></summary>
+        <form action="/" method="POST" enctype="multipart/form-data">
+            <p>
                 <input type="file" name="from-file" />
-            </label>
-        </p>
-        <p>
-            <button type="submit">Submit</button>
-        </p>
-    </form>
-    <form action="/" method="POST">
-        <p>
-            <label>
-                Text
-                <textarea name="from-raw-text">{{.Text}}</textarea>
-            </label>
-        </p>
-        <p>
-            <button type="submit">Submit</button>
-        </p>
-    </form>
-    {{if not (len .Errors) -}}<p>No errors found</p>{{- end}}
-    {{range $ei, $e := $.Errors -}}
-        {{if eq $e.Line -1 -}}<p class="error"></p>{{- end}}
-    {{- end}}
-    {{if .TextLines -}}
-        <pre>{{range $i, $l := .TextLines -}}
-            <span class="line" data-line-no="{{$i}}">{{$l}}</span>{{nl}}<!--
-            -->{{range $ei, $e := $.Errors -}}
+            </p>
+            <p>
+                <label for="from-raw-text">Template</label>
+                <textarea wrap="off" name="from-raw-text" id="from-raw-text" placeholder="The bot says {{"{{"}}.Value{{"}}"}}">{{.RawText}}</textarea>
+            </p>
+            <p>
+                <label for="data">Data (json)</label>
+                <textarea wrap="off" name="data" id="data" placeholder='{"Value": "hello world"}'>{{.RawData}}</textarea>
+            </p>
+            <p>
+                <label for="functions">Function names (comma separated list)</label>
+                <input type="text" name="functions" id="functions" value="{{.RawFunctions}}" />
+            </p>
+            <p>
+                <button type="submit">Submit</button>
+            </p>
+        </form>
+    </details>
+    {{if .RawText -}}
+    <details open>
+        <summary><h3>Results</h3></summary>
+        {{if not (len .Errors) -}}
+        <p>No errors found</p>
+        {{- else -}}
+        <p>{{len .Errors}} error{{if ne (len .Errors) 1}}s{{end}} found</p>
+        {{- end}}
+        {{range $ei, $e := $.Errors -}}
+            {{if eq $e.Line -1 -}}<p class="error">{{$e.Description}}</p>{{- end}}
+        {{- end}}
+        <pre>
+            {{- range $i, $l := .TextLines -}}
+            <span class="line{{- range $ei, $e := $.Errors}}{{if eq $i $e.Line}} with-error{{end}}{{end}}" data-line-no="{{$i}}">
+                {{- $l -}}
+            </span>{{nl}}
+            {{- range $ei, $e := $.Errors -}}
                 {{if eq $i $e.Line -}}
-                {{if ne $e.Char -1}}<span class="error line {{$e.Level}}">{{range $_ := intRange 0 $e.Char}} {{end}}^</span>{{nl}}{{end}}<!--
-                --><span class="error line {{$e.Level}}">{{$e.Description}}</span>{{nl}}
-                {{- end}}
-            {{- end}}
-        {{- end}}</pre>
+                <span class="line error {{$e.Level}}">
+                    {{- if ne $e.Char -1 -}}
+                    {{- range $_ := intRange 1 $e.Char}}{{" "}}{{end}}{{"↑ " -}}
+                    {{- end -}}
+                    {{- $e.Description -}}
+                </span>{{nl}}
+                {{- end -}}
+            {{- end -}}
+            {{- end -}}
+        </pre>
+    </details>
     {{- end}}
+    {{if .Output -}}
+    <details>
+        <summary><h3>Output</h3></summary>
+        <pre>{{- .Output -}}</pre>
+    </details>
+    {{- end}}
+    <footer>Made by <a href="https://camlittle.com">Cameron Little</a></footer>
 </body>
 </html>

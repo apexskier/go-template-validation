@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	htmlTemplate "html/template"
 	"io"
@@ -23,8 +24,16 @@ var (
 type ErrorLevel string
 
 const (
-	parseErrorLevel ErrorLevel = "parse"
-	execErrorLevel  ErrorLevel = "exec"
+	misunderstoodError ErrorLevel = "misunderstood"
+	parseErrorLevel    ErrorLevel = "parse"
+	execErrorLevel     ErrorLevel = "exec"
+)
+
+var (
+	templateParseErrorRegex = regexp.MustCompile(`template: :(\d+): (.*)`)
+	templateExecErrorRegex  = regexp.MustCompile(`template: :(\d+):(\d+): (.*)`)
+	findTokenRegex          = regexp.MustCompile(`"(.+)"`)
+	functionNotFoundRegex   = regexp.MustCompile(`function "(.+)" not defined`)
 )
 
 type templateError struct {
@@ -34,10 +43,85 @@ type templateError struct {
 	Level       ErrorLevel
 }
 type indexData struct {
-	Text           string
+	RawText        string
+	RawData        string
+	RawFunctions   string
 	TextLines      []string
+	Output         string
 	Errors         []templateError
 	LineNumSpacing int
+}
+
+func getText(r *http.Request) (string, error) {
+	file, _, err := r.FormFile("from-file")
+	if err != nil {
+		return r.FormValue("from-raw-text"), nil
+	}
+	defer file.Close()
+	var buf bytes.Buffer
+	defer buf.Reset()
+	io.Copy(&buf, file)
+	return buf.String(), nil
+}
+
+func parse(text string, baseTpl *textTemplate.Template, depth int) (t *textTemplate.Template, tplErrs []templateError) {
+	lines := strings.Split(strings.Replace(text, "\r\n", "\n", -1), "\n")
+	tplErrs = make([]templateError, 0)
+
+	if depth > 10 {
+		return
+	}
+
+	t, err := baseTpl.Parse(text)
+	if err != nil {
+		errStr := err.Error()
+		matches := templateParseErrorRegex.FindStringSubmatch(errStr)
+		if len(matches) == 3 {
+			description := matches[2]
+			line, err := strconv.Atoi(matches[1])
+			if err != nil {
+				line = -1
+			} else {
+				line = line - 1
+			}
+			char := -1
+			// try to find a character to line up with
+			var token string
+			tokenLoc := findTokenRegex.FindStringIndex(description)
+			if tokenLoc != nil {
+				token = string(description[tokenLoc[0]+1 : tokenLoc[1]-1])
+				lastChar := strings.LastIndex(lines[line], token)
+				firstChar := strings.Index(lines[line], token)
+				// if it's not the only match, we don't know which character is the one the error occured on
+				if lastChar == firstChar {
+					char = firstChar
+				}
+			}
+			tplErrs = append(tplErrs, templateError{
+				Line:        line,
+				Char:        char,
+				Description: description,
+				Level:       parseErrorLevel,
+			})
+			isBadFunction := functionNotFoundRegex.MatchString(description)
+			if isBadFunction {
+				t, parseTplErrs := parse(text, baseTpl.Funcs(textTemplate.FuncMap{
+					token: func() error {
+						return nil
+					},
+				}), depth+1)
+				return t, append(tplErrs, parseTplErrs...)
+			}
+		} else {
+			tplErrs = append(tplErrs, templateError{
+				Line:        -1,
+				Char:        -1,
+				Description: errStr,
+				Level:       misunderstoodError,
+			})
+		}
+	}
+	return
 }
 
 func main() {
@@ -58,14 +142,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	templateParseErrorRegex, err := regexp.Compile(`template: :(\d+): (.*)`)
-	if err != nil {
-		panic(err)
-	}
-	templateExecErrorRegex, err := regexp.Compile(`template: :(\d+):(\d+): (.*)`)
-	if err != nil {
-		panic(err)
-	}
 
 	r := chi.NewRouter()
 
@@ -73,82 +149,101 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
-		text := r.FormValue("from-raw-text")
-		fromTextarea := true
+		maxRequestSize := int64(32 << 20)
+		r.ParseMultipartForm(maxRequestSize)
 		tplErrs := []templateError{}
-		if text == "" {
-			fromTextarea = false
-			file, _, err := r.FormFile("from-file")
-			if err == http.ErrMissingFile {
-				tplErrs = append(tplErrs, templateError{
-					Line:        -1,
-					Char:        -1,
-					Description: "couldn't accept file",
-				})
-			} else if err != nil {
-				panic(err)
-			} else {
-				defer file.Close()
-				var buf bytes.Buffer
-				io.Copy(&buf, file)
-				text = buf.String()
-				defer buf.Reset()
-			}
+
+		text, err := getText(r)
+		if err == http.ErrMissingFile {
+			tplErrs = append(tplErrs, templateError{
+				Line:        -1,
+				Char:        -1,
+				Description: "couldn't accept file",
+			})
+		} else if err != nil {
+			panic(err)
 		}
-		t, err := textTemplate.New("").Parse(text)
+		lines := strings.Split(strings.Replace(text, "\r\n", "\n", -1), "\n")
+
+		var data interface{}
+		rawData := r.FormValue("data")
+		err = json.Unmarshal([]byte(rawData), &data)
+		if err != nil {
+			tplErrs = append(tplErrs, templateError{
+				Line:        -1,
+				Char:        -1,
+				Description: fmt.Sprintf("failed to understand data: %v", err),
+				Level:       misunderstoodError,
+			})
+		}
+
+		rawFunctions := r.FormValue("functions")
+		var functions []string
+		if rawFunctions != "" {
+			functions = strings.Split(rawFunctions, ",")
+		}
+
+		t := textTemplate.New("")
+		for _, function := range functions {
+			functionName := strings.TrimSpace(function)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						tplErrs = append(tplErrs, templateError{
+							Line:        -1,
+							Char:        -1,
+							Description: fmt.Sprintf(`bad function name provided: "%s"`, functionName),
+							Level:       misunderstoodError,
+						})
+					}
+				}()
+				t = t.Funcs(textTemplate.FuncMap{functionName: func() error { return nil }})
+			}()
+		}
+		t, parseTplErrs := parse(text, t, 0)
+		tplErrs = append(tplErrs, parseTplErrs...)
+
+		var buf bytes.Buffer
+		defer buf.Reset()
+		err = t.Execute(&buf, data)
 		if err != nil {
 			errStr := err.Error()
-			matches := templateParseErrorRegex.FindStringSubmatch(errStr)
-			if len(matches) == 3 {
+			matches := templateExecErrorRegex.FindStringSubmatch(errStr)
+			if len(matches) == 4 {
 				line, err := strconv.Atoi(matches[1])
 				if err != nil {
 					line = -1
+				} else {
+					line = line - 1
+				}
+				char, err := strconv.Atoi(matches[2])
+				if err != nil {
+					char = -1
 				}
 				tplErrs = append(tplErrs, templateError{
-					Line:        line - 1,
+					Line:        line,
+					Char:        char,
+					Description: matches[3],
+					Level:       execErrorLevel,
+				})
+			} else {
+				tplErrs = append(tplErrs, templateError{
+					Line:        -1,
 					Char:        -1,
-					Description: matches[2],
-					Level:       parseErrorLevel,
+					Description: errStr,
+					Level:       misunderstoodError,
 				})
 			}
-		} else {
-			var buff bytes.Buffer
-			err := t.Execute(&buff, struct{}{})
-			if err != nil {
-				errStr := err.Error()
-				matches := templateExecErrorRegex.FindStringSubmatch(errStr)
-				if len(matches) == 4 {
-					line, err := strconv.Atoi(matches[1])
-					if err != nil {
-						line = -1
-					} else {
-						line = line - 1
-					}
-					char, err := strconv.Atoi(matches[2])
-					if err != nil {
-						char = -1
-					}
-					tplErrs = append(tplErrs, templateError{
-						Line:        line,
-						Char:        char,
-						Description: matches[3],
-						Level:       execErrorLevel,
-					})
-				}
-			}
 		}
-		lines := strings.Split(strings.Replace(text, "\r\n", "\n", -1), "\n")
 
 		// outputs html into the textarea, so chrome gets worried
 		// https://stackoverflow.com/a/17815577/2178159
 		w.Header().Add("X-XSS-Protection", "0")
-		var outputText string
-		if fromTextarea {
-			outputText = text
-		}
 		indexTemplate.Execute(w, indexData{
-			Text:           outputText,
+			RawText:        text,
+			RawData:        rawData,
+			RawFunctions:   rawFunctions,
+			Output:         buf.String(),
 			Errors:         tplErrs,
 			TextLines:      lines,
 			LineNumSpacing: CountDigits(len(lines)),
