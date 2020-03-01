@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	textTemplate "text/template"
 
@@ -137,36 +136,8 @@ func main() {
 
 		var buf bytes.Buffer
 		defer buf.Reset()
-		err = t.Execute(&buf, data)
-		if err != nil {
-			errStr := err.Error()
-			matches := templateExecErrorRegex.FindStringSubmatch(errStr)
-			if len(matches) == 4 {
-				line, err := strconv.Atoi(matches[1])
-				if err != nil {
-					line = -1
-				} else {
-					line = line - 1
-				}
-				char, err := strconv.Atoi(matches[2])
-				if err != nil {
-					char = -1
-				}
-				tplErrs = append(tplErrs, templateError{
-					Line:        line,
-					Char:        char,
-					Description: matches[3],
-					Level:       execErrorLevel,
-				})
-			} else {
-				tplErrs = append(tplErrs, templateError{
-					Line:        -1,
-					Char:        -1,
-					Description: errStr,
-					Level:       misunderstoodError,
-				})
-			}
-		}
+		execTplErrs := exec(t, data, &buf)
+		tplErrs = append(tplErrs, execTplErrs...)
 
 		// outputs html into the textarea, so chrome gets worried
 		// https://stackoverflow.com/a/17815577/2178159

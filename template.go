@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"regexp"
 	"strconv"
 	"strings"
@@ -73,4 +74,39 @@ func parse(text string, baseTpl *textTemplate.Template, depth int) (*textTemplat
 		return baseTpl, tplErrs
 	}
 	return t, tplErrs
+}
+
+func exec(t *textTemplate.Template, data interface{}, buf *bytes.Buffer) []templateError {
+	tplErrs := make([]templateError, 0)
+	err := t.Execute(buf, data)
+	if err != nil {
+		errStr := err.Error()
+		matches := templateExecErrorRegex.FindStringSubmatch(errStr)
+		if len(matches) == 4 {
+			line, err := strconv.Atoi(matches[1])
+			if err != nil {
+				line = -1
+			} else {
+				line = line - 1
+			}
+			char, err := strconv.Atoi(matches[2])
+			if err != nil {
+				char = -1
+			}
+			tplErrs = append(tplErrs, templateError{
+				Line:        line,
+				Char:        char,
+				Description: matches[3],
+				Level:       execErrorLevel,
+			})
+		} else {
+			tplErrs = append(tplErrs, templateError{
+				Line:        -1,
+				Char:        -1,
+				Description: errStr,
+				Level:       misunderstoodError,
+			})
+		}
+	}
+	return tplErrs
 }
