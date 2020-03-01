@@ -1,14 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 	textTemplate "text/template"
 )
 
-func TestSimpleParse(t *testing.T) {
+func TestParseSimple(t *testing.T) {
 	tpl, errs := parse("hello world", textTemplate.New("base"), 0)
 	if len(errs) != 0 {
-		t.Fatal("errs found")
+		t.Fatalf("errs found: %v", errs)
 	}
 	defined := tpl.DefinedTemplates()
 	if defined != `; defined templates are: "base"` {
@@ -44,7 +45,7 @@ func TestParseUnexpectedEOF(t *testing.T) {
 	}, errs[0])
 }
 
-func TestUnknownFunctions(t *testing.T) {
+func TestParseUnknownFunctions(t *testing.T) {
 	_, errs := parse("{{foo}}{{bar}}", textTemplate.New("base"), 0)
 	if len(errs) != 2 {
 		t.Errorf("unexpected errors found: %v", errs)
@@ -76,7 +77,7 @@ func TestParseNoname(t *testing.T) {
 	}, errs[0])
 }
 
-func TestInvalidIf(t *testing.T) {
+func TestParseInvalidIf(t *testing.T) {
 	_, errs := parse("{{if}}{{end}}", textTemplate.New("base"), 0)
 	if len(errs) != 1 {
 		t.Errorf("unexpected errors found: %v", errs)
@@ -87,4 +88,34 @@ func TestInvalidIf(t *testing.T) {
 		Level:       parseErrorLevel,
 		Description: `missing value for if`,
 	}, errs[0])
+}
+
+func TestExec(t *testing.T) {
+	tpl, _ := textTemplate.New("base").Parse("<{{.Value}}>")
+	var buf bytes.Buffer
+	errs := exec(tpl, struct{ Value string }{Value: "foo"}, &buf)
+	if len(errs) != 0 {
+		t.Errorf("errs found: %v", errs)
+	}
+	if buf.String() != "<foo>" {
+		t.Errorf("output doesn't match: `%s`", buf.String())
+	}
+}
+
+func TestExecMissing(t *testing.T) {
+	tpl, _ := textTemplate.New("base").Parse("<{{.Value}}>")
+	var buf bytes.Buffer
+	errs := exec(tpl, struct{}{}, &buf)
+	if len(errs) != 1 {
+		t.Errorf("errs found: %v", errs)
+	}
+	assertError(t, templateError{
+		Line:        0,
+		Char:        3,
+		Level:       execErrorLevel,
+		Description: `executing "base" at <.Value>: can't evaluate field Value in type struct {}`,
+	}, errs[0])
+	if buf.String() != "<" {
+		t.Errorf("output doesn't match: `%s`", buf.String())
+	}
 }
