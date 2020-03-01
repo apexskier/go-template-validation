@@ -82,6 +82,7 @@ func main() {
 	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 		maxRequestSize := int64(32 << 20)
 		r.ParseMultipartForm(maxRequestSize)
+
 		tplErrs := []templateError{}
 
 		text, err := getText(r)
@@ -94,7 +95,6 @@ func main() {
 		} else if err != nil {
 			panic(err)
 		}
-		lines := strings.Split(strings.Replace(text, "\r\n", "\n", -1), "\n")
 
 		var data interface{}
 		rawData := r.FormValue("data")
@@ -108,15 +108,17 @@ func main() {
 			})
 		}
 
+		t := textTemplate.New("")
+
+		// mock template functions - this'll happen automatically as they're found, but errors will be output and there's a max limit
 		rawFunctions := r.FormValue("functions")
 		var functions []string
 		if rawFunctions != "" {
 			functions = strings.Split(rawFunctions, ",")
 		}
-
-		t := textTemplate.New("")
 		for _, function := range functions {
 			functionName := strings.TrimSpace(function)
+			// wrap in func so we can catch panics on bad function names
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
@@ -131,6 +133,7 @@ func main() {
 				t = t.Funcs(textTemplate.FuncMap{functionName: func() error { return nil }})
 			}()
 		}
+
 		t, parseTplErrs := parse(text, t, 0)
 		tplErrs = append(tplErrs, parseTplErrs...)
 
@@ -142,6 +145,8 @@ func main() {
 		// outputs html into the textarea, so chrome gets worried
 		// https://stackoverflow.com/a/17815577/2178159
 		w.Header().Add("X-XSS-Protection", "0")
+
+		lines := SplitLines(text)
 		indexTemplate.Execute(w, indexData{
 			RawText:        text,
 			RawData:        rawData,

@@ -57,7 +57,7 @@ func createTemplateError(err error, level ErrorLevel) templateError {
 }
 
 func parse(text string, baseTpl *textTemplate.Template, depth int) (*textTemplate.Template, []templateError) {
-	lines := strings.Split(strings.Replace(text, "\r\n", "\n", -1), "\n")
+	lines := SplitLines(text)
 	tplErrs := make([]templateError, 0)
 
 	if depth > 10 {
