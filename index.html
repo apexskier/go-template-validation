@@ -1,9 +1,10 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
     <title>Go template validator</title>
-    <meta name="description" content="">
-    <meta name="keywords" content="go template validation validator">
+    <meta name="description" content="Online go template validator">
+    <meta name="keywords" content="go golang template validation validator">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
@@ -76,7 +77,8 @@
         <summary><h3>Input</h3></summary>
         <form method="POST" enctype="multipart/form-data">
             <p>
-                <input type="file" name="from-file" />
+                <label for="from-file">Upload file</label>
+                <input type="file" name="from-file" id="from-file" />
             </p>
             <p>
                 <label for="from-raw-text">Template</label>
