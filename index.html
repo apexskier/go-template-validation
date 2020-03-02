@@ -24,7 +24,7 @@
         }
         .line.error::before {
             background-color: crimson;
-            color: #fff;
+            color: white;
         }
         .line.error::before {
             text-align: center;
@@ -57,6 +57,20 @@
         footer {
             margin-top: 2em;
             margin-bottom: 1em;
+        }
+
+        /* dark mode is trendy */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: black;
+                color: gainsboro;
+            }
+            a[href] {
+                color: skyblue;
+            }
+            a:visited {
+                color: violet;
+            }
         }
     </style>
 </head>
