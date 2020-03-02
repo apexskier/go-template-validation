@@ -1,0 +1,20 @@
+name: Docker build/publish
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build and test docker image
+      run: docker build -t docker.pkg.github.com/apexskier/go-template-validation/go-template-validation:$(echo $GITHUB_SHA | head -c7) .
+    - name: Tag docker image
+      run: docker tag docker.pkg.github.com/apexskier/go-template-validation/go-template-validation:$(echo $GITHUB_SHA | head -c7) docker.pkg.github.com/apexskier/go-template-validation/go-template-validation:latest
+    - name: Login to GitHub registry
+      run: docker login docker.pkg.github.com -u apexskier -p ${{ secrets.GITHUB_TOKEN }}
+    - name: Push image
+      run: docker push docker.pkg.github.com/apexskier/go-template-validation/go-template-validation
