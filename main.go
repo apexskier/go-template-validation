@@ -140,12 +140,62 @@ func main() {
 			}()
 		}
 
-		parsedT, parseTplErrs := parse(text, t)
+		parsedT, parseTplErrs := tplParse(text, t)
 		tplErrs = append(tplErrs, parseTplErrs...)
+
+		// textCopy := []byte(text)
+		// annotatedText := make([]byte, 0)
+		// // walk tree and find matching nodes
+		// lastPos := templateParse.Pos(0)
+		// annotateNode := func(node *templateParse.Node) {
+		// 	_node := *node
+		// 	switch n := _node.(type) {
+		// 	case *templateParse.ActionNode:
+		// 		annotatedText = append(annotatedText, []byte(`<span class="node action">`)...)
+		// 		annotatedText = append(annotatedText, []byte(n.String())...)
+		// 		annotatedText = append(annotatedText, []byte(`</span>`)...)
+		// 	default:
+		// 		annotatedText = append(annotatedText, []byte(`<span class="node">`)...)
+		// 		annotatedText = append(annotatedText, []byte(n.String())...)
+		// 		annotatedText = append(annotatedText, []byte(`</span>`)...)
+		// 		// case *templateParse.IfNode:
+		// 		// case *templateParse.ListNode:
+		// 		// case *templateParse.RangeNode:
+		// 		// case *templateParse.TemplateNode:
+		// 		// case *templateParse.TextNode:
+		// 		// case *templateParse.WithNode:
+		// 	}
+		// }
+		// walk := func(listNode *templateParse.ListNode) {
+		// 	for _, node := range listNode.Nodes {
+		// 		switch n := node.(type) {
+		// 		case *templateParse.ActionNode:
+		// 			walk(n.Pipe.Cmds)
+		// 			annotatedText = append(annotatedText, textCopy[lastPos:n.Pos]...)
+		// 			annotatedText = append(annotatedText, []byte(`<span class="node action">`)...)
+		// 			annotatedText = append(annotatedText, []byte(n.String())...)
+		// 			annotatedText = append(annotatedText, []byte(`</span>`)...)
+		// 		default:
+		// 			annotatedText = append(annotatedText, textCopy[lastPos:node.Position()]...)
+		// 			annotatedText = append(annotatedText, []byte(`<span class="node">`)...)
+		// 			annotatedText = append(annotatedText, []byte(n.String())...)
+		// 			annotatedText = append(annotatedText, []byte(`</span>`)...)
+		// 			// case *templateParse.IfNode:
+		// 			// case *templateParse.ListNode:
+		// 			// case *templateParse.RangeNode:
+		// 			// case *templateParse.TemplateNode:
+		// 			// case *templateParse.TextNode:
+		// 			// case *templateParse.WithNode:
+		// 		}
+		// 		lastPos = node.Position()
+		// 	}
+		// }
+		// walk(parsedT.Tree.Root)
+		// annotatedText = append(annotatedText, []byte(textCopy[lastPos:len(textCopy)])...)
 
 		var buf bytes.Buffer
 		defer buf.Reset()
-		execTplErrs := exec(parsedT, data, &buf)
+		execTplErrs := tplExec(parsedT, data, &buf)
 		tplErrs = append(tplErrs, execTplErrs...)
 
 		// outputs html into the textarea, so chrome gets worried

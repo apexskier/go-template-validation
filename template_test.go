@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseSimple(t *testing.T) {
-	tpl, errs := parse("hello world", textTemplate.New("base"))
+	tpl, errs := tplParse("hello world", textTemplate.New("base"))
 	if len(errs) != 0 {
 		t.Fatalf("errs found: %v", errs)
 	}
@@ -33,7 +33,7 @@ func assertError(t *testing.T, expected templateError, actual templateError) {
 }
 
 func TestParseUnexpectedEOF(t *testing.T) {
-	_, errs := parse("{{if .Value}}", textTemplate.New("base"))
+	_, errs := tplParse("{{if .Value}}", textTemplate.New("base"))
 	if len(errs) != 1 {
 		t.Errorf("unexpected errors found: %v", errs)
 	}
@@ -46,7 +46,7 @@ func TestParseUnexpectedEOF(t *testing.T) {
 }
 
 func TestParseUnknownFunctions(t *testing.T) {
-	_, errs := parse("{{foo}}{{bar}}", textTemplate.New("base"))
+	_, errs := tplParse("{{foo}}{{bar}}", textTemplate.New("base"))
 	if len(errs) != 2 {
 		t.Errorf("unexpected errors found: %v", errs)
 	}
@@ -65,7 +65,7 @@ func TestParseUnknownFunctions(t *testing.T) {
 }
 
 func TestParseNoname(t *testing.T) {
-	_, errs := parse("{{foo}}", textTemplate.New(""))
+	_, errs := tplParse("{{foo}}", textTemplate.New(""))
 	if len(errs) != 1 {
 		t.Errorf("unexpected errors found: %v", errs)
 	}
@@ -78,7 +78,7 @@ func TestParseNoname(t *testing.T) {
 }
 
 func TestParseInvalidIf(t *testing.T) {
-	_, errs := parse("{{if}}{{end}}", textTemplate.New("base"))
+	_, errs := tplParse("{{if}}{{end}}", textTemplate.New("base"))
 	if len(errs) != 1 {
 		t.Errorf("unexpected errors found: %v", errs)
 	}
@@ -91,7 +91,7 @@ func TestParseInvalidIf(t *testing.T) {
 }
 
 func TestParseIndexSyntax(t *testing.T) {
-	_, errs := parse("<{{.Foo[2]}}>", textTemplate.New("base"))
+	_, errs := tplParse("<{{.Foo[2]}}>", textTemplate.New("base"))
 	if len(errs) != 1 {
 		t.Errorf("unexpected errors found: %v", errs)
 	}
@@ -106,7 +106,7 @@ func TestParseIndexSyntax(t *testing.T) {
 func TestExecWorks(t *testing.T) {
 	tpl, _ := textTemplate.New("base").Parse("<{{.Value}}>")
 	var buf bytes.Buffer
-	errs := exec(tpl, struct{ Value string }{Value: "foo"}, &buf)
+	errs := tplExec(tpl, struct{ Value string }{Value: "foo"}, &buf)
 	if len(errs) != 0 {
 		t.Errorf("errs found: %v", errs)
 	}
@@ -118,7 +118,7 @@ func TestExecWorks(t *testing.T) {
 func TestExecGenericStruct(t *testing.T) {
 	tpl, _ := textTemplate.New("base").Parse("<{{.Foo.Bar}}>")
 	var buf bytes.Buffer
-	errs := exec(tpl, map[string]interface{}{}, &buf)
+	errs := tplExec(tpl, map[string]interface{}{}, &buf)
 	if len(errs) != 0 {
 		t.Errorf("errs found: %v", errs)
 	}
@@ -127,7 +127,7 @@ func TestExecGenericStruct(t *testing.T) {
 func TestExecMissing(t *testing.T) {
 	tpl, _ := textTemplate.New("base").Parse("<{{.Value}}>")
 	var buf bytes.Buffer
-	errs := exec(tpl, struct{}{}, &buf)
+	errs := tplExec(tpl, struct{}{}, &buf)
 	if len(errs) != 1 {
 		t.Errorf("unexpected errs: %v", errs)
 	}
@@ -145,7 +145,7 @@ func TestExecMissing(t *testing.T) {
 func TestExecIgnoresIncomplete(t *testing.T) {
 	tpl := textTemplate.New("base")
 	var buf bytes.Buffer
-	errs := exec(tpl, nil, &buf)
+	errs := tplExec(tpl, nil, &buf)
 	if len(errs) != 0 {
 		t.Errorf("errs found: %v", errs)
 	}

@@ -58,7 +58,7 @@ func createTemplateError(err error, level ErrorLevel) templateError {
 	}
 }
 
-func parse(text string, baseTpl *textTemplate.Template) (*textTemplate.Template, []templateError) {
+func tplParse(text string, baseTpl *textTemplate.Template) (*textTemplate.Template, []templateError) {
 	return parseInternal(text, baseTpl, 0)
 }
 
@@ -106,7 +106,7 @@ func parseInternal(text string, baseTpl *textTemplate.Template, depth int) (*tex
 	return t, tplErrs
 }
 
-func exec(t *textTemplate.Template, data interface{}, buf *bytes.Buffer) []templateError {
+func tplExec(t *textTemplate.Template, data interface{}, buf *bytes.Buffer) []templateError {
 	tplErrs := make([]templateError, 0)
 	err := t.Execute(buf, data)
 	if err != nil {
