@@ -13,7 +13,7 @@ var (
 	maxFixes                    = 10
 	templateErrorRegex          = regexp.MustCompile(`template: (.*?):((\d+):)?(\d+): (.*)`)
 	findTokenRegex              = regexp.MustCompile(`['"](.+)['"]`)
-	findExprRegex               = regexp.MustCompile(`<(\.Value)>`)
+	findExprRegex               = regexp.MustCompile(`<(\..+?)>`)
 	functionNotFoundRegex       = regexp.MustCompile(`function "(.+)" not defined`)
 	missingValueForCommandRegex = regexp.MustCompile(`missing value for command`)
 	firstEmptyCommandRegex      = regexp.MustCompile(`{{((-?\s*?)|(\s*?-?))}}`)
@@ -129,6 +129,10 @@ func parseInternal(text string, baseTpl *textTemplate.Template, depth int) (t *t
 }
 
 func exec(t *textTemplate.Template, data interface{}, buf *bytes.Buffer) []templateError {
+	return execInternal(t, data, buf, 0)
+}
+
+func execInternal(t *textTemplate.Template, data interface{}, buf *bytes.Buffer, depth int) []templateError {
 	tplErrs := make([]templateError, 0)
 	err := t.Execute(buf, data)
 	if err != nil {
@@ -136,12 +140,12 @@ func exec(t *textTemplate.Template, data interface{}, buf *bytes.Buffer) []templ
 			return tplErrs
 		}
 		tplErr := createTemplateError(err, execErrorLevel)
+		tplErrs = append(tplErrs, tplErr)
+
 		matches := findExprRegex.FindStringSubmatch(tplErr.Description)
 		if len(matches) == 2 {
-			value := matches[1]
-			fmt.Println(value)
+			fmt.Println(matches[1])
 		}
-		tplErrs = append(tplErrs, tplErr)
 	}
 	return tplErrs
 }
