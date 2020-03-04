@@ -103,6 +103,40 @@ func TestParseIndexSyntax(t *testing.T) {
 	}, errs[0])
 }
 
+func TestParseEmptyCommand(t *testing.T) {
+	for _, testCase := range []string{"{{}}", "{{- }}", "{{  -}}"} {
+		_, errs := parse(testCase, textTemplate.New("base"))
+		if len(errs) != 1 {
+			t.Errorf("unexpected errors found: %v", errs)
+		}
+		assertError(t, templateError{
+			Char:        0,
+			Line:        0,
+			Level:       parseErrorLevel,
+			Description: `missing value for command`,
+		}, errs[0])
+	}
+}
+
+func TestParseEmptyCommands(t *testing.T) {
+	_, errs := parse("\n\n{{ }} hello world {{ }}", textTemplate.New("base"))
+	if len(errs) != 2 {
+		t.Errorf("unexpected errors found: %v", errs)
+	}
+	assertError(t, templateError{
+		Char:        0,
+		Line:        2,
+		Level:       parseErrorLevel,
+		Description: `missing value for command`,
+	}, errs[0])
+	assertError(t, templateError{
+		Char:        18,
+		Line:        2,
+		Level:       parseErrorLevel,
+		Description: `missing value for command`,
+	}, errs[1])
+}
+
 func TestExecWorks(t *testing.T) {
 	tpl, _ := textTemplate.New("base").Parse("<{{.Value}}>")
 	var buf bytes.Buffer

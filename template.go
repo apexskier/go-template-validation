@@ -10,10 +10,13 @@ import (
 )
 
 var (
-	templateErrorRegex    = regexp.MustCompile(`template: (.*?):((\d+):)?(\d+): (.*)`)
-	findTokenRegex        = regexp.MustCompile(`['"](.+)['"]`)
-	findExprRegex         = regexp.MustCompile(`<(\.Value)>`)
-	functionNotFoundRegex = regexp.MustCompile(`function "(.+)" not defined`)
+	maxFixes                    = 10
+	templateErrorRegex          = regexp.MustCompile(`template: (.*?):((\d+):)?(\d+): (.*)`)
+	findTokenRegex              = regexp.MustCompile(`['"](.+)['"]`)
+	findExprRegex               = regexp.MustCompile(`<(\.Value)>`)
+	functionNotFoundRegex       = regexp.MustCompile(`function "(.+)" not defined`)
+	missingValueForCommandRegex = regexp.MustCompile(`missing value for command`)
+	firstEmptyCommandRegex      = regexp.MustCompile(`{{((-?\s*?)|(\s*?-?))}}`)
 )
 
 func createTemplateError(err error, level ErrorLevel) templateError {
@@ -62,17 +65,19 @@ func parse(text string, baseTpl *textTemplate.Template) (*textTemplate.Template,
 	return parseInternal(text, baseTpl, 0)
 }
 
-func parseInternal(text string, baseTpl *textTemplate.Template, depth int) (*textTemplate.Template, []templateError) {
+func parseInternal(text string, baseTpl *textTemplate.Template, depth int) (t *textTemplate.Template, tplErrs []templateError) {
 	lines := SplitLines(text)
-	tplErrs := make([]templateError, 0)
 
-	if depth > 10 {
+	if depth >= maxFixes {
 		return baseTpl, tplErrs
 	}
 
 	t, err := baseTpl.Parse(text)
 	if err != nil {
-		tplErr := createTemplateError(err, parseErrorLevel)
+		tplErrs = append(tplErrs, createTemplateError(err, parseErrorLevel))
+		// make this mutable
+		tplErr := &tplErrs[len(tplErrs)-1]
+
 		if tplErr.Level != misunderstoodError {
 			if tplErr.Char == -1 {
 				// try to find a character to line up with
@@ -87,7 +92,6 @@ func parseInternal(text string, baseTpl *textTemplate.Template, depth int) (*tex
 					}
 				}
 			}
-			tplErrs = append(tplErrs, tplErr)
 
 			badFunctionMatch := functionNotFoundRegex.FindStringSubmatch(tplErr.Description)
 			if badFunctionMatch != nil {
@@ -98,6 +102,24 @@ func parseInternal(text string, baseTpl *textTemplate.Template, depth int) (*tex
 					},
 				}), depth+1)
 				return t, append(tplErrs, parseTplErrs...)
+			}
+
+			if missingValueForCommandRegex.MatchString(tplErr.Description) {
+				matches := firstEmptyCommandRegex.FindStringSubmatch(text)
+				if matches != nil {
+					line := SplitLines(text)[tplErr.Line]
+					indexes := firstEmptyCommandRegex.FindStringIndex(line)
+					if indexes != nil {
+						tplErr.Char = indexes[0]
+					}
+					replacement := fmt.Sprintf(fmt.Sprintf("%%%ds", len(matches[0])), "")
+					t, parseTplErrs := parseInternal(
+						strings.Replace(text, matches[0], replacement, 1),
+						baseTpl,
+						depth+1,
+					)
+					return t, append(tplErrs, parseTplErrs...)
+				}
 			}
 		}
 
