@@ -14,5 +14,5 @@ To use, choose a file or insert your template code directly. You can add mock da
 
 ## Goals
 
-* Find as many issues as possible. The default package bails out at the frist error (which makes sense at runtime), but often you'll fix one error only to have to track down the next.
+* Find as many issues as possible. The default package bails out at the first error (which makes sense at runtime), but often you'll fix one error only to have to track down the next.
 * (at this point) Don't rewrite/maintain a fork of [`"text/template/parse"`](https://golang.org/pkg/text/template/parse/)
