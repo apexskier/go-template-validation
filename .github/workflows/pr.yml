@@ -1,0 +1,12 @@
+name: Docker build/publish
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build and test docker image
+      run: docker build -t docker.pkg.github.com/apexskier/go-template-validation/go-template-validation:$(echo $GITHUB_SHA | head -c7) .
