@@ -1,4 +1,4 @@
-name: Docker build/publish
+name: PR actions
 
 on:
   pull_request:
