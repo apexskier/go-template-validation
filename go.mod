@@ -1,6 +1,6 @@
 module github.com/apexskier/go-template-validator
 
-go 1.14
+go 1.16
 
 require (
 	github.com/go-chi/chi v4.1.2+incompatible
