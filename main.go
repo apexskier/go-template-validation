@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"fmt"
 	htmlTemplate "html/template"
@@ -15,9 +16,10 @@ import (
 	"github.com/go-chi/chi/middleware"
 )
 
-var (
-	port = 8080
-)
+const port = 8080
+
+//go:embed index.html
+var staticTemplates embed.FS
 
 // ErrorLevel is the type of error found
 type ErrorLevel string
@@ -73,7 +75,7 @@ func main() {
 			return strings.Split(str, ": ")
 		},
 	}
-	indexTemplate, err := htmlTemplate.New("index.html").Funcs(funcs).ParseFiles("index.html")
+	indexTemplate, err := htmlTemplate.New("index.html").Funcs(funcs).ParseFS(staticTemplates, "*")
 	if err != nil {
 		panic(err)
 	}

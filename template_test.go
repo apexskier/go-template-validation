@@ -99,7 +99,7 @@ func TestParseIndexSyntax(t *testing.T) {
 		Char:        7,
 		Line:        0,
 		Level:       parseErrorLevel,
-		Description: `unexpected bad character U+005B '[' in command`,
+		Description: `bad character U+005B '['`,
 	}, errs[0])
 }
 
