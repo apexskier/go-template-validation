@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  IMAGE_NAME: toolbox
+  IMAGE_NAME: go-template-validation
 
 jobs:
   build:
