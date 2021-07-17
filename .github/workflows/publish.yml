@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - uses: actions/checkout@v1
+
       - name: Build image
         run: docker build -t $IMAGE_NAME .
 
