@@ -4,6 +4,8 @@ When working with the [`"text/template"`](https://golang.org/pkg/text/template/)
 
 To use, choose a file or insert your template code directly. You can add mock data in the form of JSON.
 
+<img width="544" alt="Go template validator - example output" src="https://user-images.githubusercontent.com/329222/126074853-d09d7dc5-20e9-45f2-ae77-ce74d9ce5cd8.png">
+
 ## Features
 
 * Show errors at the relavent line/character
