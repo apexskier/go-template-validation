@@ -86,7 +86,7 @@
             show where validation errors are happening.
         </p>
         <p>
-            To use, choose a file or insert your template code directly. You can add mock data in the form of JSON.
+            To use, choose a file, insert your template code directly, or copy and paste a string literal from source. You can add mock data in the form of JSON.
         </p>
     </section>
     <details open>
@@ -99,6 +99,11 @@
             <p>
                 <label for="from-raw-text">Template</label>
                 <textarea wrap="off" name="from-raw-text" id="from-raw-text" placeholder="The bot says {{"{{"}}.Value{{"}}"}}">{{.RawText}}</textarea>
+                <label title="Check this if you copied a string literal from source code, including wrapping quotes.">
+                    <input type="checkbox" name="unquote" id="unquote" />
+                    String literal<sup><a href="https://golang.org/ref/spec#String_literals" target="_blank" title="String literal help">﹖</a></sup>
+                    (include the wrapping quotes in text area)
+                </label>
             </p>
             <p>
                 <label for="data">Data (json)</label>
@@ -113,7 +118,7 @@
             </p>
         </form>
     </details>
-    {{if .RawText -}}
+    {{if or .RawText .Errors -}}
     <details open>
         <summary><h3>Results</h3></summary>
         {{if not (len .Errors) -}}

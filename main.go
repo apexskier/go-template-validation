@@ -9,11 +9,13 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	textTemplate "text/template"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/pkg/errors"
 )
 
 const port = 8080
@@ -46,10 +48,22 @@ type indexData struct {
 	LineNumSpacing int
 }
 
+// getText returns the text of the template, either from the file or raw text
+// field.
 func getText(r *http.Request) (string, error) {
 	file, _, err := r.FormFile("from-file")
 	if err != nil {
-		return r.FormValue("from-raw-text"), nil
+		rawText := r.FormValue("from-raw-text")
+		unquote := r.FormValue("unquote")
+		if unquote != "" {
+			// don't overwrite rawText yet in case of errors
+			unquotedText, err := strconv.Unquote(rawText)
+			if err != nil {
+				return rawText, errors.Wrap(err, `failed to unquote string literal (did you copy the wrapping quotes?) (should "Unquote string literal" be unchecked?)`)
+			}
+			rawText = unquotedText
+		}
+		return rawText, nil
 	}
 	defer file.Close()
 	var buf bytes.Buffer
@@ -99,7 +113,12 @@ func main() {
 				Description: "couldn't accept file",
 			})
 		} else if err != nil {
-			panic(err)
+			tplErrs = append(tplErrs, templateError{
+				Line:        -1,
+				Char:        -1,
+				Description: err.Error(),
+				Level:       misunderstoodError,
+			})
 		}
 
 		var data interface{}
@@ -153,6 +172,10 @@ func main() {
 		// outputs html into the textarea, so chrome gets worried
 		// https://stackoverflow.com/a/17815577/2178159
 		w.Header().Add("X-XSS-Protection", "0")
+
+		if len(tplErrs) > 0 {
+			w.WriteHeader(http.StatusBadRequest)
+		}
 
 		lines := SplitLines(text)
 		indexTemplate.Execute(w, indexData{
